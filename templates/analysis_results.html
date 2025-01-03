@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Detection Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEJ+K6P4pVFC5NMG3w0S+6fDmjW8fnrQznzVf+5D1PV8s9C9NS0mS68rjFXbT" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #181818;
+            color: #ddd;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+            background: linear-gradient(145deg, #1a1a1a, #333);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .file-result {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #444;
+            border-radius: 10px;
+            background-color: #2d2d2d;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .file-result:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .result-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #f5f5f5;
+        }
+
+        .result-details {
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .ai-detected {
+            color: #e74c3c;
+        }
+
+        .not-ai-detected {
+            color: #2ecc71;
+        }
+
+        .analysis-details {
+            margin-top: 20px;
+        }
+
+        .analysis-item span {
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: #3498db;
+            display: none;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        /* Typing effect */
+        @keyframes typing {
+            0% {
+                width: 0;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        /* Fade-in effect for results */
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .file-name {
+            display: inline-block;
+            width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            animation: typing 3s steps(30) 1s forwards;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>AI Code Detection Results</h1>
+
+        <div class="loading" id="loading">
+            <div class="spinner-border" role="status"></div>
+            <p>Loading Analysis...</p>
+        </div>
+
+        {% if analysis_results %}
+            <div id="results-container" style="display: none;">
+                {% for result in analysis_results %}
+                    <div class="file-result">
+                        <div class="result-title">
+                            <strong>Filename:</strong> <span class="file-name">{{ result.filename }}</span>
+                        </div>
+                        <div class="result-details">
+                            <strong>AI Generated:</strong>
+                            {% if result.is_ai_generated %}
+                                <span class="ai-detected">Yes</span>
+                            {% else %}
+                                <span class="not-ai-detected">No</span>
+                            {% endif %}
+                        </div>
+                        <div class="result-details">
+                            <strong>AI Likelihood:</strong> {{ result.ai_percentage }}%
+                        </div>
+
+                        <div class="analysis-details">
+                            <h5>Analysis:</h5>
+                            <p>{{ result.analysis_summary }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No analysis results found.</p>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pzjw8f+ua7Kw1TIq0CZ13KGoIY9n8KvTR9zzj4BRpW7VwXQb2yfjk19thjqIKNIN" crossorigin="anonymous"></script>
+    <script>
+        // Simulate loading state for demonstration
+        window.onload = function() {
+            setTimeout(function() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results-container').style.display = 'block';
+            }, 3000); // Simulate loading for 3 seconds
+        }
+    </script>
+</body>
+
+</html>
