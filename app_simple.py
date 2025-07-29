@@ -4,65 +4,24 @@ import ast
 import json
 import hashlib
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
-import language_tool_python
+from flask import Flask, render_template, request, jsonify
 import numpy as np
-import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.ensemble import RandomForestClassifier
-import plotly.graph_objs as go
-import plotly.utils
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ai_detector.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-
-# Initialize extensions
-db = SQLAlchemy(app)
-CORS(app)
 
 # Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialize LanguageTool
-tool = language_tool_python.LanguageTool('en-US')
-
-# Database Models
-class AnalysisResult(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False)
-    file_hash = db.Column(db.String(64), unique=True, nullable=False)
-    file_size = db.Column(db.Integer, nullable=False)
-    language = db.Column(db.String(50), nullable=False)
-    ai_percentage = db.Column(db.Float, nullable=False)
-    is_ai_generated = db.Column(db.Boolean, nullable=False)
-    analysis_details = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'filename': self.filename,
-            'file_hash': self.file_hash,
-            'file_size': self.file_size,
-            'language': self.language,
-            'ai_percentage': self.ai_percentage,
-            'is_ai_generated': self.is_ai_generated,
-            'analysis_details': json.loads(self.analysis_details),
-            'created_at': self.created_at.isoformat()
-        }
+# Simple in-memory storage for demo purposes
+analysis_results = []
 
 # Enhanced AI Detection Class
 class AdvancedAIDetector:
     def __init__(self):
-        self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
-        self.classifier = RandomForestClassifier(n_estimators=100, random_state=42)
+        pass
         
     def extract_features(self, code):
         """Extract comprehensive features from code"""
@@ -123,10 +82,14 @@ class AdvancedAIDetector:
         docstring_comments = re.findall(r'""".*?"""', code, re.DOTALL)
         all_comments = python_comments + docstring_comments
         
+        # Simple grammar check (count common grammar issues)
         comment_issues = 0
         for comment in python_comments:
-            matches = tool.check(comment)
-            comment_issues += len(matches)
+            # Check for common grammar issues
+            if re.search(r'\b(a\s+[aeiou]|an\s+[^aeiou])', comment, re.IGNORECASE):
+                comment_issues += 1
+            if re.search(r'\b(are|is)\s+\w+ing\b', comment, re.IGNORECASE):
+                comment_issues += 1
         
         return {
             'comment_count': len(all_comments),
@@ -383,31 +346,26 @@ def api_analyze():
         code = data['code']
         filename = data.get('filename', 'unknown')
         
-        # Check if we've analyzed this code before
-        file_hash = calculate_file_hash(code)
-        existing_result = AnalysisResult.query.filter_by(file_hash=file_hash).first()
-        
-        if existing_result:
-            return jsonify(existing_result.to_dict())
-        
         # Perform analysis
         result = detector.detect_ai_generated(code, filename)
         
-        # Save to database
-        analysis_result = AnalysisResult(
-            filename=filename,
-            file_hash=file_hash,
-            file_size=len(code),
-            language=get_language_from_extension(filename),
-            ai_percentage=result['ai_percentage'],
-            is_ai_generated=result['is_ai_generated'],
-            analysis_details=json.dumps(result)
-        )
+        # Create result object
+        analysis_result = {
+            'id': len(analysis_results) + 1,
+            'filename': filename,
+            'file_hash': calculate_file_hash(code),
+            'file_size': len(code),
+            'language': get_language_from_extension(filename),
+            'ai_percentage': result['ai_percentage'],
+            'is_ai_generated': result['is_ai_generated'],
+            'analysis_details': result,
+            'created_at': datetime.utcnow().isoformat()
+        }
         
-        db.session.add(analysis_result)
-        db.session.commit()
+        # Store result
+        analysis_results.append(analysis_result)
         
-        return jsonify(analysis_result.to_dict())
+        return jsonify(analysis_result)
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -422,48 +380,36 @@ def analyze_files():
     if not files:
         return render_template('index.html', message="No files selected.")
     
-    analysis_results = []
+    results = []
     
     for file in files:
         if file and allowed_file(file.filename):
             try:
                 content = file.read().decode('utf-8')
-                file_hash = calculate_file_hash(content)
                 
-                # Check cache
-                existing_result = AnalysisResult.query.filter_by(file_hash=file_hash).first()
+                # Perform analysis
+                analysis = detector.detect_ai_generated(content, file.filename)
                 
-                if existing_result:
-                    result = existing_result.to_dict()
-                else:
-                    # Perform analysis
-                    analysis = detector.detect_ai_generated(content, file.filename)
-                    
-                    # Save to database
-                    analysis_result = AnalysisResult(
-                        filename=file.filename,
-                        file_hash=file_hash,
-                        file_size=len(content),
-                        language=get_language_from_extension(file.filename),
-                        ai_percentage=analysis['ai_percentage'],
-                        is_ai_generated=analysis['is_ai_generated'],
-                        analysis_details=json.dumps(analysis)
-                    )
-                    
-                    db.session.add(analysis_result)
-                    db.session.commit()
-                    
-                    result = analysis_result.to_dict()
+                # Create result object
+                result = {
+                    'filename': file.filename,
+                    'file_hash': calculate_file_hash(content),
+                    'file_size': len(content),
+                    'language': get_language_from_extension(file.filename),
+                    'ai_percentage': analysis['ai_percentage'],
+                    'is_ai_generated': analysis['is_ai_generated'],
+                    'analysis_details': analysis
+                }
                 
-                analysis_results.append(result)
+                results.append(result)
                 
             except Exception as e:
-                analysis_results.append({
+                results.append({
                     'filename': file.filename,
                     'error': str(e)
                 })
     
-    return render_template('analysis_results.html', analysis_results=analysis_results)
+    return render_template('analysis_results.html', analysis_results=results)
 
 @app.route('/api/history')
 def api_history():
@@ -471,14 +417,14 @@ def api_history():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
     
-    results = AnalysisResult.query.order_by(AnalysisResult.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_results = analysis_results[start_idx:end_idx]
     
     return jsonify({
-        'results': [result.to_dict() for result in results.items],
-        'total': results.total,
-        'pages': results.pages,
+        'results': page_results,
+        'total': len(analysis_results),
+        'pages': (len(analysis_results) + per_page - 1) // per_page,
         'current_page': page
     })
 
@@ -486,52 +432,50 @@ def api_history():
 def dashboard():
     """Analytics dashboard"""
     # Get statistics
-    total_analyses = AnalysisResult.query.count()
-    ai_generated_count = AnalysisResult.query.filter_by(is_ai_generated=True).count()
+    total_analyses = len(analysis_results)
+    ai_generated_count = sum(1 for r in analysis_results if r.get('is_ai_generated', False))
     human_written_count = total_analyses - ai_generated_count
     
     # Language distribution
-    language_stats = db.session.query(
-        AnalysisResult.language,
-        db.func.count(AnalysisResult.id).label('count')
-    ).group_by(AnalysisResult.language).all()
+    language_stats = {}
+    for result in analysis_results:
+        lang = result.get('language', 'Unknown')
+        language_stats[lang] = language_stats.get(lang, 0) + 1
     
     # Recent analyses
-    recent_analyses = AnalysisResult.query.order_by(
-        AnalysisResult.created_at.desc()
-    ).limit(10).all()
+    recent_analyses = sorted(analysis_results, key=lambda x: x.get('created_at', ''), reverse=True)[:10]
     
     return render_template('dashboard.html',
                          total_analyses=total_analyses,
                          ai_generated_count=ai_generated_count,
                          human_written_count=human_written_count,
-                         language_stats=language_stats,
+                         language_stats=language_stats.items(),
                          recent_analyses=recent_analyses)
 
 @app.route('/api/stats')
 def api_stats():
     """API endpoint for statistics"""
-    total_analyses = AnalysisResult.query.count()
-    ai_generated_count = AnalysisResult.query.filter_by(is_ai_generated=True).count()
+    total_analyses = len(analysis_results)
+    ai_generated_count = sum(1 for r in analysis_results if r.get('is_ai_generated', False))
     
     # Average AI percentage
-    avg_ai_percentage = db.session.query(db.func.avg(AnalysisResult.ai_percentage)).scalar() or 0
+    avg_ai_percentage = 0
+    if analysis_results:
+        avg_ai_percentage = sum(r.get('ai_percentage', 0) for r in analysis_results) / len(analysis_results)
     
     # Language distribution
-    language_stats = db.session.query(
-        AnalysisResult.language,
-        db.func.count(AnalysisResult.id).label('count')
-    ).group_by(AnalysisResult.language).all()
+    language_stats = {}
+    for result in analysis_results:
+        lang = result.get('language', 'Unknown')
+        language_stats[lang] = language_stats.get(lang, 0) + 1
     
     return jsonify({
         'total_analyses': total_analyses,
         'ai_generated_count': ai_generated_count,
         'human_written_count': total_analyses - ai_generated_count,
         'avg_ai_percentage': round(avg_ai_percentage, 2),
-        'language_distribution': {lang: count for lang, count in language_stats}
+        'language_distribution': language_stats
     })
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5000)

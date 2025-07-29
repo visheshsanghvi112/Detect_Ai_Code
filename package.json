@@ -1,17 +1,64 @@
 {
-  "name": "code-analyzer",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "ai-code-detector",
+  "version": "2.0.0",
+  "description": "Advanced AI-powered code detection tool with machine learning algorithms and real-time analytics",
+  "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"Building frontend assets...\"",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "ai-detection",
+    "code-analysis",
+    "machine-learning",
+    "python",
+    "flask",
+    "javascript",
+    "nodejs",
+    "code-quality",
+    "static-analysis",
+    "ai-generated-code"
+  ],
+  "author": "Vishesh",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ai-code-detector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/ai-code-detector/issues"
+  },
+  "homepage": "https://github.com/yourusername/ai-code-detector#readme",
   "dependencies": {
-    "body-parser": "^1.20.3",
     "express": "^4.21.2",
-    "multer": "^1.4.5-lts.1"
-  }
+    "multer": "^1.4.5-lts.1",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
 }

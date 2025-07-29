@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Detector - Analytics Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1e1b4b 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary-color) !important;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #2d3748 100%);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .stat-card.ai-detected {
+            border-left-color: var(--danger-color);
+        }
+
+        .stat-card.human-written {
+            border-left-color: var(--success-color);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .recent-analysis-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.2s ease;
+        }
+
+        .recent-analysis-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+
+        .recent-analysis-item.ai-detected {
+            border-left-color: var(--danger-color);
+        }
+
+        .recent-analysis-item.human-written {
+            border-left-color: var(--success-color);
+        }
+
+        .ai-percentage {
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .ai-percentage.high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .ai-percentage.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .ai-percentage.low {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .language-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                AI Code Detector
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-upload me-1"></i>
+                    Upload Files
+                </a>
+                <a class="nav-link active" href="/dashboard">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h2 mb-2">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Analytics Dashboard
+                </h1>
+                <p class="text-muted">Real-time insights into AI code detection patterns</p>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <div class="stat-number text-primary" id="totalAnalyses">{{ total_analyses }}</div>
+                        <div class="stat-label">Total Analyses</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card ai-detected">
+                    <div class="card-body text-center">
+                        <div class="stat-number text-danger" id="aiDetected">{{ ai_generated_count }}</div>
+                        <div class="stat-label">AI Detected</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card human-written">
+                    <div class="card-body text-center">
+                        <div class="stat-number text-success" id="humanWritten">{{ human_written_count }}</div>
+                        <div class="stat-label">Human Written</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <div class="stat-number text-warning" id="avgPercentage">
+                            {{ "%.1f"|format((ai_generated_count / total_analyses * 100) if total_analyses > 0 else 0) }}%
+                        </div>
+                        <div class="stat-label">AI Detection Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        AI vs Human Code Distribution
+                    </h5>
+                    <div id="pieChart" style="height: 300px;"></div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">
+                        <i class="fas fa-code me-2"></i>
+                        Language Distribution
+                    </h5>
+                    <div id="languageChart" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Analyses -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Analyses
+                        </h5>
+                        <button class="btn btn-primary btn-sm" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentAnalyses">
+                            {% for analysis in recent_analyses %}
+                            <div class="recent-analysis-item {% if analysis.is_ai_generated %}ai-detected{% else %}human-written{% endif %}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file-code me-2 text-primary"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ analysis.filename }}</div>
+                                                <div class="text-muted small">{{ analysis.language }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <span class="ai-percentage {% if analysis.ai_percentage >= 50 %}high{% elif analysis.ai_percentage >= 30 %}medium{% else %}low{% endif %}">
+                                            {{ "%.1f"|format(analysis.ai_percentage) }}% AI
+                                        </span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-muted small">
+                                            {{ analysis.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 text-end">
+                                        {% if analysis.is_ai_generated %}
+                                        <span class="badge bg-danger">AI Generated</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Human Written</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize charts
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            startAutoRefresh();
+        });
+
+        function initializeCharts() {
+            // Pie Chart for AI vs Human
+            const pieData = [{
+                values: [{{ ai_generated_count }}, {{ human_written_count }}],
+                labels: ['AI Generated', 'Human Written'],
+                type: 'pie',
+                marker: {
+                    colors: ['#ef4444', '#10b981']
+                },
+                textinfo: 'label+percent',
+                textposition: 'outside'
+            }];
+
+            const pieLayout = {
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+                showlegend: false,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#f8fafc' }
+            };
+
+            Plotly.newPlot('pieChart', pieData, pieLayout, { responsive: true });
+
+            // Language Distribution Chart
+            const languageData = [{
+                x: [{% for lang, count in language_stats %}'{{ lang }}'{% if not loop.last %}, {% endif %}{% endfor %}],
+                y: [{% for lang, count in language_stats %}{{ count }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                type: 'bar',
+                marker: {
+                    color: '#6366f1',
+                    opacity: 0.8
+                }
+            }];
+
+            const languageLayout = {
+                margin: { t: 20, b: 40, l: 60, r: 20 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#f8fafc' },
+                xaxis: { 
+                    tickangle: -45,
+                    tickfont: { size: 10 }
+                },
+                yaxis: { 
+                    title: 'Count',
+                    titlefont: { color: '#cbd5e1' }
+                }
+            };
+
+            Plotly.newPlot('languageChart', languageData, languageLayout, { responsive: true });
+        }
+
+        function refreshData() {
+            const refreshBtn = document.querySelector('.btn-primary');
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = '<span class="loading"></span> Refreshing...';
+            refreshBtn.disabled = true;
+
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    updateStats(data);
+                    updateCharts(data);
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error refreshing data:', error);
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.disabled = false;
+                });
+        }
+
+        function updateStats(data) {
+            document.getElementById('totalAnalyses').textContent = data.total_analyses;
+            document.getElementById('aiDetected').textContent = data.ai_generated_count;
+            document.getElementById('humanWritten').textContent = data.human_written_count;
+            document.getElementById('avgPercentage').textContent = data.avg_ai_percentage + '%';
+        }
+
+        function updateCharts(data) {
+            // Update pie chart
+            const pieUpdate = {
+                values: [data.ai_generated_count, data.human_written_count]
+            };
+            Plotly.restyle('pieChart', pieUpdate);
+
+            // Update language chart
+            const languages = Object.keys(data.language_distribution);
+            const counts = Object.values(data.language_distribution);
+            
+            const languageUpdate = {
+                x: [languages],
+                y: [counts]
+            };
+            Plotly.restyle('languageChart', languageUpdate);
+        }
+
+        function startAutoRefresh() {
+            // Auto-refresh every 30 seconds
+            setInterval(() => {
+                refreshData();
+            }, 30000);
+        }
+
+        // Add some interactive effects
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>
