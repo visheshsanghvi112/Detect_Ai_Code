@@ -1,175 +1,520 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Detection Results</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEJ+K6P4pVFC5NMG3w0S+6fDmjW8fnrQznzVf+5D1PV8s9C9NS0mS68rjFXbT" crossorigin="anonymous">
+    <title>Analysis Results - AI Code Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --border-color: #334155;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #181818;
-            color: #ddd;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1e1b4b 100%);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--primary-color) !important;
+        }
+
+        .results-header {
+            text-align: center;
+            padding: 3rem 0;
+        }
+
+        .results-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .results-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .result-card.ai-detected {
+            border-left: 6px solid var(--danger-color);
+        }
+
+        .result-card.human-written {
+            border-left: 6px solid var(--success-color);
+        }
+
+        .result-header {
             display: flex;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+
+        .file-info {
+            display: flex;
             align-items: center;
         }
 
-        .container {
-            max-width: 800px;
-            margin-top: 50px;
-            background: linear-gradient(145deg, #1a1a1a, #333);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.1);
+        .file-icon {
+            font-size: 2rem;
+            margin-right: 1rem;
+            color: var(--primary-color);
         }
 
-        h1 {
+        .file-details h4 {
+            margin-bottom: 0.25rem;
+        }
+
+        .file-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .ai-percentage-badge {
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 1.1rem;
             text-align: center;
-            color: #fff;
-            margin-bottom: 30px;
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+            min-width: 120px;
         }
 
-        .file-result {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #444;
-            border-radius: 10px;
-            background-color: #2d2d2d;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        .ai-percentage-badge.high {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+            color: white;
         }
 
-        .file-result:hover {
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+        .ai-percentage-badge.medium {
+            background: linear-gradient(135deg, var(--warning-color), #d97706);
+            color: white;
         }
 
-        .result-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #f5f5f5;
+        .ai-percentage-badge.low {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+            color: white;
         }
 
-        .result-details {
-            font-size: 1rem;
-            margin-top: 10px;
+        .verdict-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
         }
 
-        .ai-detected {
-            color: #e74c3c;
+        .verdict-badge.ai {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid var(--danger-color);
         }
 
-        .not-ai-detected {
-            color: #2ecc71;
+        .verdict-badge.human {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border: 1px solid var(--success-color);
         }
 
         .analysis-details {
-            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
         }
 
-        .analysis-item span {
-            font-weight: bold;
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .detail-value {
+            font-weight: 600;
+        }
+
+        .feature-breakdown {
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .feature-item.ai-indicator {
+            border-left-color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .feature-item.human-indicator {
+            border-left-color: var(--success-color);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .feature-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-outline-light {
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-light:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .summary-box {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #2d3748 100%);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .summary-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-icon.ai {
+            color: var(--danger-color);
+        }
+
+        .summary-icon.human {
+            color: var(--success-color);
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .loading {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 1.2rem;
-            color: #3498db;
-            display: none;
-        }
-
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-
-        /* Typing effect */
-        @keyframes typing {
-            0% {
-                width: 0;
-            }
-
-            100% {
-                width: 100%;
-            }
-        }
-
-        /* Fade-in effect for results */
-        @keyframes fadeIn {
-            0% {
-                opacity: 0;
-            }
-
-            100% {
-                opacity: 1;
-            }
-        }
-
-        .file-name {
             display: inline-block;
-            width: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            animation: typing 3s steps(30) 1s forwards;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>AI Code Detection Results</h1>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                AI Code Detector
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">
+                    <i class="fas fa-upload me-1"></i>
+                    Upload Files
+                </a>
+                <a class="nav-link" href="/dashboard">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
 
-        <div class="loading" id="loading">
-            <div class="spinner-border" role="status"></div>
-            <p>Loading Analysis...</p>
+    <div class="container">
+        <!-- Results Header -->
+        <div class="results-header">
+            <h1 class="results-title">Analysis Results</h1>
+            <p class="results-subtitle">Detailed analysis of {{ analysis_results|length }} file(s)</p>
         </div>
 
-        {% if analysis_results %}
-            <div id="results-container" style="display: none;">
-                {% for result in analysis_results %}
-                    <div class="file-result">
-                        <div class="result-title">
-                            <strong>Filename:</strong> <span class="file-name">{{ result.filename }}</span>
-                        </div>
-                        <div class="result-details">
-                            <strong>AI Generated:</strong>
-                            {% if result.is_ai_generated %}
-                                <span class="ai-detected">Yes</span>
-                            {% else %}
-                                <span class="not-ai-detected">No</span>
-                            {% endif %}
-                        </div>
-                        <div class="result-details">
-                            <strong>AI Likelihood:</strong> {{ result.ai_percentage }}%
-                        </div>
+        <!-- Summary Statistics -->
+        {% if analysis_results|length > 1 %}
+        <div class="summary-box">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="summary-icon">
+                        <i class="fas fa-file-code"></i>
+                    </div>
+                    <h4>{{ analysis_results|length }}</h4>
+                    <p class="text-muted">Files Analyzed</p>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-icon ai">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h4>{{ analysis_results|selectattr('is_ai_generated')|list|length }}</h4>
+                    <p class="text-muted">AI Detected</p>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-icon human">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <h4>{{ analysis_results|rejectattr('is_ai_generated')|list|length }}</h4>
+                    <p class="text-muted">Human Written</p>
+                </div>
+                <div class="col-md-3">
+                    <div class="summary-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4>{{ "%.1f"|format((analysis_results|map(attribute='ai_percentage')|sum) / analysis_results|length) }}%</h4>
+                    <p class="text-muted">Avg AI Score</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
-                        <div class="analysis-details">
-                            <h5>Analysis:</h5>
-                            <p>{{ result.analysis_summary }}</p>
+        <!-- Individual Results -->
+        {% for result in analysis_results %}
+        <div class="result-card {% if result.is_ai_generated %}ai-detected{% else %}human-written{% endif %}">
+            <div class="result-header">
+                <div class="file-info">
+                    <div class="file-icon">
+                        <i class="fas fa-file-code"></i>
+                    </div>
+                    <div class="file-details">
+                        <h4>{{ result.filename }}</h4>
+                        <div class="file-meta">
+                            <span class="badge bg-secondary me-2">{{ result.language }}</span>
+                            <span>{{ result.file_size }} characters</span>
                         </div>
                     </div>
-                {% endfor %}
+                </div>
+                <div class="text-end">
+                    <div class="ai-percentage-badge {% if result.ai_percentage >= 50 %}high{% elif result.ai_percentage >= 30 %}medium{% else %}low{% endif %}">
+                        {{ "%.1f"|format(result.ai_percentage) }}%
+                    </div>
+                    <div class="mt-2">
+                        <span class="verdict-badge {% if result.is_ai_generated %}ai{% else %}human{% endif %}">
+                            {% if result.is_ai_generated %}
+                            <i class="fas fa-robot me-1"></i>AI Generated
+                            {% else %}
+                            <i class="fas fa-user me-1"></i>Human Written
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
             </div>
-        {% else %}
-            <p>No analysis results found.</p>
-        {% endif %}
+
+            <!-- Analysis Summary -->
+            <div class="analysis-details">
+                <h5 class="mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Analysis Summary
+                </h5>
+                <p class="mb-0">{{ result.analysis_details.analysis_summary }}</p>
+            </div>
+
+            <!-- Feature Breakdown -->
+            {% if result.analysis_details.features %}
+            <div class="feature-breakdown">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Feature Analysis
+                </h5>
+                
+                {% set features = result.analysis_details.features %}
+                
+                <!-- Code Structure -->
+                <div class="feature-item">
+                    <div class="feature-name">Code Structure</div>
+                    <div class="feature-description">
+                        Lines: {{ features.lines_of_code }}, 
+                        Avg Line Length: {{ "%.1f"|format(features.avg_line_length) }},
+                        Indentation Consistency: {{ "%.1f"|format(features.indent_consistency * 100) }}%
+                    </div>
+                </div>
+
+                <!-- Comments -->
+                <div class="feature-item {% if features.comment_grammar_issues > 2 %}ai-indicator{% endif %}">
+                    <div class="feature-name">Comments</div>
+                    <div class="feature-description">
+                        Count: {{ features.comment_count }}, 
+                        Grammar Issues: {{ features.comment_grammar_issues }},
+                        Has Docstrings: {{ "Yes" if features.has_docstrings else "No" }}
+                    </div>
+                </div>
+
+                <!-- Variables & Functions -->
+                <div class="feature-item {% if features.ai_variable_count > 3 %}ai-indicator{% endif %}">
+                    <div class="feature-name">Variables & Functions</div>
+                    <div class="feature-description">
+                        Variables: {{ features.variable_count }}, 
+                        AI Patterns: {{ features.ai_variable_count }},
+                        Functions: {{ features.function_count }}
+                    </div>
+                </div>
+
+                <!-- Complexity -->
+                <div class="feature-item">
+                    <div class="feature-name">Complexity</div>
+                    <div class="feature-description">
+                        Cyclomatic: {{ features.cyclomatic_complexity }}, 
+                        Nesting Depth: {{ features.nesting_depth }},
+                        Branches: {{ features.branch_count }}
+                    </div>
+                </div>
+
+                <!-- Style Consistency -->
+                <div class="feature-item {% if features.indent_consistency < 0.8 %}ai-indicator{% endif %}">
+                    <div class="feature-name">Style Consistency</div>
+                    <div class="feature-description">
+                        Indentation: {{ "%.1f"|format(features.indent_consistency * 100) }}%,
+                        Operator Spacing: {{ "%.1f"|format(features.operator_spacing_consistency * 100) }}%
+                    </div>
+                </div>
+
+                <!-- Semantic Patterns -->
+                <div class="feature-item {% if features.ai_pattern_matches > 2 or features.common_library_count > 2 %}ai-indicator{% endif %}">
+                    <div class="feature-name">Semantic Patterns</div>
+                    <div class="feature-description">
+                        AI Patterns: {{ features.ai_pattern_matches }}, 
+                        Common Libraries: {{ features.common_library_count }},
+                        Main Guard: {{ "Yes" if features.has_main_guard else "No" }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Action Buttons -->
+        <div class="text-center mb-5">
+            <a href="/" class="btn btn-primary me-3">
+                <i class="fas fa-upload me-2"></i>
+                Analyze More Files
+            </a>
+            <a href="/dashboard" class="btn btn-outline-light">
+                <i class="fas fa-chart-line me-2"></i>
+                View Dashboard
+            </a>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-pzjw8f+ua7Kw1TIq0CZ13KGoIY9n8KvTR9zzj4BRpW7VwXQb2yfjk19thjqIKNIN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Simulate loading state for demonstration
-        window.onload = function() {
-            setTimeout(function() {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('results-container').style.display = 'block';
-            }, 3000); // Simulate loading for 3 seconds
-        }
+        // Add some interactive effects
+        document.querySelectorAll('.result-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-6px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Animate percentage badges on load
+        document.querySelectorAll('.ai-percentage-badge').forEach(badge => {
+            const percentage = parseFloat(badge.textContent);
+            badge.style.opacity = '0';
+            badge.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                badge.style.transition = 'all 0.5s ease';
+                badge.style.opacity = '1';
+                badge.style.transform = 'scale(1)';
+            }, 200);
+        });
+
+        // Add pulse effect to AI detected cards
+        document.querySelectorAll('.result-card.ai-detected').forEach(card => {
+            card.classList.add('pulse');
+        });
     </script>
 </body>
-
 </html>
